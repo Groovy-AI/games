@@ -2,201 +2,209 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ultimate Flappy Bird</title>
+<title>FLAPPY FINAL FORM</title>
 <style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: linear-gradient(#70c5ce, #ffffff);
-    font-family: Arial, sans-serif;
-    text-align: center;
-}
-
-canvas {
-    display: block;
-    margin: auto;
-    background: linear-gradient(#70c5ce, #e0f7ff);
-}
-
-#ui {
-    position: absolute;
-    width: 100%;
-    top: 20px;
-    color: white;
-    font-size: 24px;
-    font-weight: bold;
-    text-shadow: 2px 2px 4px black;
-}
-
-button {
-    padding: 12px 20px;
-    font-size: 18px;
-    border: none;
-    border-radius: 10px;
-    background: #ffcc00;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #ff9900;
-}
+body {margin:0;overflow:hidden;background:black;font-family:Arial;color:white;}
+canvas {display:block;margin:auto;}
+#menu {position:absolute;width:100%;text-align:center;top:15%;}
+button {padding:12px 20px;margin:6px;border:none;border-radius:8px;background:#ffcc00;font-weight:bold;cursor:pointer;}
+h1 {font-size:40px;}
 </style>
 </head>
 <body>
 
-<div id="ui">
-    <div id="scoreText"></div>
-    <div id="menu">
-        <h1>🐤 ULTIMATE FLAPPY</h1>
-        <button onclick="startGame()">Start Game</button>
-        <p>Tap / Click / Press Space</p>
-        <p>High Score: <span id="highScoreText">0</span></p>
-    </div>
+<div id="menu">
+<h1 id="title">🐤 FLAPPY FINAL FORM</h1>
+<button onclick="startGame()">PLAY</button>
+<p>High Score: <span id="hs"></span></p>
+<p id="devilText"></p>
 </div>
 
-<canvas id="gameCanvas"></canvas>
+<canvas id="game"></canvas>
 
 <script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=innerWidth;
+canvas.height=innerHeight;
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+let gravity=0.5,lift=-10;
+let bird,pipes,score,frame,running=false;
+let speed=3;
+let highScore=+localStorage.getItem("hs")||0;
+let ghost=JSON.parse(localStorage.getItem("ghost"))||[];
+let replay=[];
+let devilMode=false;
+let particles=[];
 
-let bird, pipes, score, highScore = localStorage.getItem("flappyHigh") || 0;
-let gravity = 0.5;
-let lift = -9;
-let gameRunning = false;
-let frame = 0;
+document.getElementById("hs").innerText=highScore;
 
-document.getElementById("highScoreText").innerText = highScore;
+/* ---- SECRET DEVIL MODE ---- */
+if (performance.navigation.type === 1) {
+    devilMode=true;
+    document.getElementById("devilText").innerText="😈 DEVIL MODE ACTIVATED";
+}
+/* --------------------------- */
 
-function startGame() {
-    bird = {
-        x: 100,
-        y: canvas.height/2,
-        radius: 20,
-        velocity: 0
-    };
-
-    pipes = [];
-    score = 0;
-    frame = 0;
-    gameRunning = true;
-    document.getElementById("menu").style.display = "none";
-    document.getElementById("scoreText").innerText = "Score: 0";
+function startGame(){
+    document.getElementById("menu").style.display="none";
+    running=true;
+    bird={x:100,y:canvas.height/2,r:20,v:0};
+    pipes=[];
+    score=0;
+    frame=0;
+    replay=[];
     loop();
 }
 
-function endGame() {
-    gameRunning = false;
-    if(score > highScore) {
-        highScore = score;
-        localStorage.setItem("flappyHigh", highScore);
+function endGame(){
+    if(devilMode) return; // UNKILLABLE
+    running=false;
+    if(score>highScore){
+        highScore=score;
+        localStorage.setItem("hs",highScore);
+        localStorage.setItem("ghost",JSON.stringify(replay));
     }
-    document.getElementById("menu").style.display = "block";
-    document.getElementById("highScoreText").innerText = highScore;
+    document.getElementById("hs").innerText=highScore;
+    document.getElementById("menu").style.display="block";
 }
 
-function drawBird() {
-    ctx.beginPath();
-    ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI*2);
-    ctx.fillStyle = "yellow";
-    ctx.fill();
+function createPipe(){
+    let gap=160;
+    let top=Math.random()*(canvas.height-gap-200)+50;
+    pipes.push({x:canvas.width,w:80,top:top,bottom:top+gap,passed:false});
 }
 
-function createPipe() {
-    let gap = 170;
-    let topHeight = Math.random() * (canvas.height - gap - 200) + 50;
-    pipes.push({
-        x: canvas.width,
-        width: 70,
-        top: topHeight,
-        bottom: topHeight + gap,
-        passed: false
-    });
-}
+function update(){
+    bird.v+=gravity;
+    bird.y+=bird.v;
 
-function drawPipes() {
-    pipes.forEach(pipe => {
-        ctx.fillStyle = "green";
-        ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
-        ctx.fillRect(pipe.x, pipe.bottom, pipe.width, canvas.height);
+    if(frame%80===0) createPipe();
 
-        pipe.x -= 3;
+    pipes.forEach(p=>{
+        p.x-=speed+(score*0.02);
 
-        if(!pipe.passed && pipe.x + pipe.width < bird.x) {
-            pipe.passed = true;
-            score++;
-            document.getElementById("scoreText").innerText = "Score: " + score;
-            playSound(600);
+        if(!p.passed&&p.x+p.w<bird.x){
+            p.passed=true;
+            score+= devilMode?2:1;
+            spawnParticles(bird.x,bird.y);
         }
 
         if(
-            bird.x + bird.radius > pipe.x &&
-            bird.x - bird.radius < pipe.x + pipe.width &&
-            (bird.y - bird.radius < pipe.top || bird.y + bird.radius > pipe.bottom)
-        ) {
-            playSound(200);
+            bird.x+bird.r>p.x &&
+            bird.x-bird.r<p.x+p.w &&
+            (bird.y-bird.r<p.top || bird.y+bird.r>p.bottom)
+        ){
             endGame();
         }
     });
 
-    pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+    if(bird.y+bird.r>canvas.height||bird.y-bird.r<0) endGame();
+
+    pipes=pipes.filter(p=>p.x+p.w>0);
+    replay.push({x:bird.x,y:bird.y});
 }
 
-function update() {
-    bird.velocity += gravity;
-    bird.y += bird.velocity;
+function drawBird(){
+    ctx.save();
+    ctx.translate(bird.x,bird.y);
+    ctx.rotate(bird.v*0.05);
 
-    if(bird.y + bird.radius > canvas.height || bird.y - bird.radius < 0) {
-        playSound(200);
-        endGame();
+    ctx.fillStyle=devilMode?"red":"yellow";
+    ctx.beginPath();
+    ctx.arc(0,0,bird.r,0,Math.PI*2);
+    ctx.fill();
+
+    if(devilMode){
+        ctx.shadowColor="red";
+        ctx.shadowBlur=20;
     }
 
-    if(frame % 90 === 0) createPipe();
+    ctx.restore();
 }
 
-function loop() {
-    if(!gameRunning) return;
+function drawPipes(){
+    ctx.fillStyle=devilMode?"darkred":"green";
+    pipes.forEach(p=>{
+        ctx.fillRect(p.x,0,p.w,p.top);
+        ctx.fillRect(p.x,p.bottom,p.w,canvas.height);
+    });
+}
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function drawGhost(){
+    if(ghost[frame]){
+        ctx.fillStyle="rgba(255,255,255,0.3)";
+        ctx.beginPath();
+        ctx.arc(ghost[frame].x,ghost[frame].y,20,0,Math.PI*2);
+        ctx.fill();
+    }
+}
+
+function spawnParticles(x,y){
+    for(let i=0;i<10;i++){
+        particles.push({
+            x:x,
+            y:y,
+            vx:(Math.random()-0.5)*4,
+            vy:(Math.random()-0.5)*4,
+            life:30
+        });
+    }
+}
+
+function drawParticles(){
+    particles.forEach(p=>{
+        ctx.fillStyle=devilMode?"red":"white";
+        ctx.fillRect(p.x,p.y,4,4);
+        p.x+=p.vx;
+        p.y+=p.vy;
+        p.life--;
+    });
+    particles=particles.filter(p=>p.life>0);
+}
+
+function drawBoss(){
+    if(score>20){
+        ctx.fillStyle=devilMode?"red":"purple";
+        ctx.fillRect(canvas.width-200,canvas.height/2-100,100,200);
+    }
+}
+
+function loop(){
+    if(!running) return;
+
+    ctx.fillStyle=devilMode?"black":"#70c5ce";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
 
     update();
+    drawGhost();
     drawBird();
     drawPipes();
+    drawParticles();
+    drawBoss();
+
+    ctx.fillStyle=devilMode?"red":"white";
+    ctx.font="30px Arial";
+    ctx.fillText("Score: "+score,20,50);
 
     frame++;
     requestAnimationFrame(loop);
 }
 
-function flap() {
-    if(!gameRunning) return;
-    bird.velocity = lift;
-    playSound(800);
-}
+function flap(){ if(running) bird.v=lift; }
+document.addEventListener("keydown",e=>{if(e.code==="Space") flap();});
+document.addEventListener("click",flap);
+document.addEventListener("touchstart",flap);
 
-document.addEventListener("keydown", e => {
-    if(e.code === "Space") flap();
-});
-document.addEventListener("click", flap);
-document.addEventListener("touchstart", flap);
+/* Background Music */
+let audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+let osc=audioCtx.createOscillator();
+osc.type="sawtooth";
+osc.frequency.value=devilMode?120:220;
+osc.connect(audioCtx.destination);
+osc.start();
+osc.stop(audioCtx.currentTime+0.1);
 
-function playSound(freq) {
-    let ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
-    let osc = ctxAudio.createOscillator();
-    osc.type = "square";
-    osc.frequency.value = freq;
-    osc.connect(ctxAudio.destination);
-    osc.start();
-    osc.stop(ctxAudio.currentTime + 0.1);
-}
-
-window.addEventListener("resize", () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
 </script>
-
 </body>
 </html>
