@@ -2,190 +2,200 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Random RPS AI</title>
+<title>Ultimate Flappy Bird</title>
 <style>
-body{
-    font-family: Arial;
-    text-align:center;
-    background:linear-gradient(135deg,#1e1e2f,#2a2a40);
-    color:white;
-    margin:0;
+body {
+    margin: 0;
+    overflow: hidden;
+    background: linear-gradient(#70c5ce, #ffffff);
+    font-family: Arial, sans-serif;
+    text-align: center;
 }
-h1{margin-top:20px;}
-.container{padding:20px;}
-button{
-    padding:15px 20px;
-    margin:10px;
-    font-size:18px;
-    border:none;
-    border-radius:10px;
-    cursor:pointer;
-    transition:0.2s;
+
+canvas {
+    display: block;
+    margin: auto;
+    background: linear-gradient(#70c5ce, #e0f7ff);
 }
-button:hover{transform:scale(1.1);}
-#rock{background:#ff7675;}
-#paper{background:#74b9ff;}
-#scissors{background:#55efc4;}
-#start{background:#ffeaa7;color:black;}
-#reset{background:#636e72;color:white;}
-.stats{
-    margin-top:15px;
-    font-size:18px;
+
+#ui {
+    position: absolute;
+    width: 100%;
+    top: 20px;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px black;
 }
-.result{
-    font-size:22px;
-    margin-top:20px;
-    min-height:30px;
+
+button {
+    padding: 12px 20px;
+    font-size: 18px;
+    border: none;
+    border-radius: 10px;
+    background: #ffcc00;
+    cursor: pointer;
 }
-.aiMood{
-    margin-top:10px;
-    font-size:18px;
-}
-.timer{
-    font-size:20px;
-    margin-top:10px;
-}
-@media(max-width:600px){
-    button{width:80%;font-size:20px;}
+
+button:hover {
+    background: #ff9900;
 }
 </style>
 </head>
 <body>
 
-<h1>🤖 Random Rock Paper Scissors</h1>
-
-<div class="container">
-
-<button id="start" onclick="startGame()">Start 30s Game</button>
-
-<div class="timer">Time: <span id="time">30</span></div>
-
-<div>
-<button id="rock" onclick="play('rock')" disabled>🪨 Rock</button>
-<button id="paper" onclick="play('paper')" disabled>📄 Paper</button>
-<button id="scissors" onclick="play('scissors')" disabled>✂️ Scissors</button>
+<div id="ui">
+    <div id="scoreText"></div>
+    <div id="menu">
+        <h1>🐤 ULTIMATE FLAPPY</h1>
+        <button onclick="startGame()">Start Game</button>
+        <p>Tap / Click / Press Space</p>
+        <p>High Score: <span id="highScoreText">0</span></p>
+    </div>
 </div>
 
-<div class="result" id="result"></div>
-
-<div class="stats">
-Wins: <span id="wins">0</span> |
-Losses: <span id="losses">0</span> |
-Draws: <span id="draws">0</span> |
-Streak: <span id="streak">0</span>
-</div>
-
-<div class="aiMood" id="aiMood">AI Mood: 😐</div>
-
-<button id="reset" onclick="resetStats()">Reset Stats</button>
-
-</div>
+<canvas id="gameCanvas"></canvas>
 
 <script>
-let wins=0, losses=0, draws=0, streak=0;
-let timeLeft=30;
-let timer;
-let gameActive=false;
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-function startGame(){
-    wins=losses=draws=streak=0;
-    updateDisplay();
-    timeLeft=30;
-    document.getElementById("time").innerText=timeLeft;
-    enableButtons(true);
-    gameActive=true;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-    timer=setInterval(()=>{
-        timeLeft--;
-        document.getElementById("time").innerText=timeLeft;
-        if(timeLeft<=0){
-            clearInterval(timer);
+let bird, pipes, score, highScore = localStorage.getItem("flappyHigh") || 0;
+let gravity = 0.5;
+let lift = -9;
+let gameRunning = false;
+let frame = 0;
+
+document.getElementById("highScoreText").innerText = highScore;
+
+function startGame() {
+    bird = {
+        x: 100,
+        y: canvas.height/2,
+        radius: 20,
+        velocity: 0
+    };
+
+    pipes = [];
+    score = 0;
+    frame = 0;
+    gameRunning = true;
+    document.getElementById("menu").style.display = "none";
+    document.getElementById("scoreText").innerText = "Score: 0";
+    loop();
+}
+
+function endGame() {
+    gameRunning = false;
+    if(score > highScore) {
+        highScore = score;
+        localStorage.setItem("flappyHigh", highScore);
+    }
+    document.getElementById("menu").style.display = "block";
+    document.getElementById("highScoreText").innerText = highScore;
+}
+
+function drawBird() {
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI*2);
+    ctx.fillStyle = "yellow";
+    ctx.fill();
+}
+
+function createPipe() {
+    let gap = 170;
+    let topHeight = Math.random() * (canvas.height - gap - 200) + 50;
+    pipes.push({
+        x: canvas.width,
+        width: 70,
+        top: topHeight,
+        bottom: topHeight + gap,
+        passed: false
+    });
+}
+
+function drawPipes() {
+    pipes.forEach(pipe => {
+        ctx.fillStyle = "green";
+        ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
+        ctx.fillRect(pipe.x, pipe.bottom, pipe.width, canvas.height);
+
+        pipe.x -= 3;
+
+        if(!pipe.passed && pipe.x + pipe.width < bird.x) {
+            pipe.passed = true;
+            score++;
+            document.getElementById("scoreText").innerText = "Score: " + score;
+            playSound(600);
+        }
+
+        if(
+            bird.x + bird.radius > pipe.x &&
+            bird.x - bird.radius < pipe.x + pipe.width &&
+            (bird.y - bird.radius < pipe.top || bird.y + bird.radius > pipe.bottom)
+        ) {
+            playSound(200);
             endGame();
         }
-    },1000);
+    });
+
+    pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
 }
 
-function endGame(){
-    enableButtons(false);
-    gameActive=false;
-    document.getElementById("result").innerText="⏰ Game Over!";
-}
+function update() {
+    bird.velocity += gravity;
+    bird.y += bird.velocity;
 
-function enableButtons(state){
-    document.getElementById("rock").disabled=!state;
-    document.getElementById("paper").disabled=!state;
-    document.getElementById("scissors").disabled=!state;
-}
-
-function randomMove(){
-    let moves=["rock","paper","scissors"];
-    return moves[Math.floor(Math.random()*3)];
-}
-
-function play(player){
-    if(!gameActive) return;
-
-    let ai=randomMove();
-
-    let result="";
-    if(player===ai){
-        draws++;
-        streak=0;
-        result="🤝 Draw!";
-    }
-    else if(
-        (player==="rock" && ai==="scissors")||
-        (player==="paper" && ai==="rock")||
-        (player==="scissors" && ai==="paper")
-    ){
-        wins++;
-        streak++;
-        result="🎉 You Win!";
-    }else{
-        losses++;
-        streak=0;
-        result="💀 You Lose!";
+    if(bird.y + bird.radius > canvas.height || bird.y - bird.radius < 0) {
+        playSound(200);
+        endGame();
     }
 
-    document.getElementById("result").innerText=
-        `You: ${player} | AI: ${ai} → ${result}`;
-
-    updateDisplay();
-    updateMood();
+    if(frame % 90 === 0) createPipe();
 }
 
-function updateDisplay(){
-    document.getElementById("wins").innerText=wins;
-    document.getElementById("losses").innerText=losses;
-    document.getElementById("draws").innerText=draws;
-    document.getElementById("streak").innerText=streak;
+function loop() {
+    if(!gameRunning) return;
 
-    localStorage.setItem("rpsStats",
-        JSON.stringify({wins,losses,draws}));
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    update();
+    drawBird();
+    drawPipes();
+
+    frame++;
+    requestAnimationFrame(loop);
 }
 
-function updateMood(){
-    let mood="😐";
-    if(losses>wins) mood="😈";
-    if(wins>losses) mood="😰";
-    document.getElementById("aiMood").innerText="AI Mood: "+mood;
+function flap() {
+    if(!gameRunning) return;
+    bird.velocity = lift;
+    playSound(800);
 }
 
-function resetStats(){
-    localStorage.removeItem("rpsStats");
-    wins=losses=draws=streak=0;
-    updateDisplay();
+document.addEventListener("keydown", e => {
+    if(e.code === "Space") flap();
+});
+document.addEventListener("click", flap);
+document.addEventListener("touchstart", flap);
+
+function playSound(freq) {
+    let ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+    let osc = ctxAudio.createOscillator();
+    osc.type = "square";
+    osc.frequency.value = freq;
+    osc.connect(ctxAudio.destination);
+    osc.start();
+    osc.stop(ctxAudio.currentTime + 0.1);
 }
 
-window.onload=function(){
-    let saved=JSON.parse(localStorage.getItem("rpsStats"));
-    if(saved){
-        wins=saved.wins;
-        losses=saved.losses;
-        draws=saved.draws;
-        updateDisplay();
-    }
-}
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
 </script>
 
 </body>
