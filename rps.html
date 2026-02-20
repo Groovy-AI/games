@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart RPS AI</title>
+<title>Random RPS AI</title>
 <style>
 body{
     font-family: Arial;
@@ -27,7 +27,7 @@ button:hover{transform:scale(1.1);}
 #paper{background:#74b9ff;}
 #scissors{background:#55efc4;}
 #start{background:#ffeaa7;color:black;}
-#reset{background:#636e72;}
+#reset{background:#636e72;color:white;}
 .stats{
     margin-top:15px;
     font-size:18px;
@@ -52,7 +52,7 @@ button:hover{transform:scale(1.1);}
 </head>
 <body>
 
-<h1>🤖 Smart Rock Paper Scissors</h1>
+<h1>🤖 Random Rock Paper Scissors</h1>
 
 <div class="container">
 
@@ -83,7 +83,6 @@ Streak: <span id="streak">0</span>
 
 <script>
 let wins=0, losses=0, draws=0, streak=0;
-let lastPlayerMove=null;
 let timeLeft=30;
 let timer;
 let gameActive=false;
@@ -95,6 +94,7 @@ function startGame(){
     document.getElementById("time").innerText=timeLeft;
     enableButtons(true);
     gameActive=true;
+
     timer=setInterval(()=>{
         timeLeft--;
         document.getElementById("time").innerText=timeLeft;
@@ -117,15 +117,6 @@ function enableButtons(state){
     document.getElementById("scissors").disabled=!state;
 }
 
-function aiMove(){
-    if(!lastPlayerMove){
-        return randomMove();
-    }
-    if(lastPlayerMove==="rock") return "paper";
-    if(lastPlayerMove==="paper") return "scissors";
-    if(lastPlayerMove==="scissors") return "rock";
-}
-
 function randomMove(){
     let moves=["rock","paper","scissors"];
     return moves[Math.floor(Math.random()*3)];
@@ -134,8 +125,7 @@ function randomMove(){
 function play(player){
     if(!gameActive) return;
 
-    let ai=aiMove();
-    lastPlayerMove=player;
+    let ai=randomMove();
 
     let result="";
     if(player===ai){
