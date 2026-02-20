@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart RPS AI</title>
+<style>
+body{
+    font-family: Arial;
+    text-align:center;
+    background:linear-gradient(135deg,#1e1e2f,#2a2a40);
+    color:white;
+    margin:0;
+}
+h1{margin-top:20px;}
+.container{padding:20px;}
+button{
+    padding:15px 20px;
+    margin:10px;
+    font-size:18px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    transition:0.2s;
+}
+button:hover{transform:scale(1.1);}
+#rock{background:#ff7675;}
+#paper{background:#74b9ff;}
+#scissors{background:#55efc4;}
+#start{background:#ffeaa7;color:black;}
+#reset{background:#636e72;}
+.stats{
+    margin-top:15px;
+    font-size:18px;
+}
+.result{
+    font-size:22px;
+    margin-top:20px;
+    min-height:30px;
+}
+.aiMood{
+    margin-top:10px;
+    font-size:18px;
+}
+.timer{
+    font-size:20px;
+    margin-top:10px;
+}
+@media(max-width:600px){
+    button{width:80%;font-size:20px;}
+}
+</style>
+</head>
+<body>
+
+<h1>🤖 Smart Rock Paper Scissors</h1>
+
+<div class="container">
+
+<button id="start" onclick="startGame()">Start 30s Game</button>
+
+<div class="timer">Time: <span id="time">30</span></div>
+
+<div>
+<button id="rock" onclick="play('rock')" disabled>🪨 Rock</button>
+<button id="paper" onclick="play('paper')" disabled>📄 Paper</button>
+<button id="scissors" onclick="play('scissors')" disabled>✂️ Scissors</button>
+</div>
+
+<div class="result" id="result"></div>
+
+<div class="stats">
+Wins: <span id="wins">0</span> |
+Losses: <span id="losses">0</span> |
+Draws: <span id="draws">0</span> |
+Streak: <span id="streak">0</span>
+</div>
+
+<div class="aiMood" id="aiMood">AI Mood: 😐</div>
+
+<button id="reset" onclick="resetStats()">Reset Stats</button>
+
+</div>
+
+<script>
+let wins=0, losses=0, draws=0, streak=0;
+let lastPlayerMove=null;
+let timeLeft=30;
+let timer;
+let gameActive=false;
+
+function startGame(){
+    wins=losses=draws=streak=0;
+    updateDisplay();
+    timeLeft=30;
+    document.getElementById("time").innerText=timeLeft;
+    enableButtons(true);
+    gameActive=true;
+    timer=setInterval(()=>{
+        timeLeft--;
+        document.getElementById("time").innerText=timeLeft;
+        if(timeLeft<=0){
+            clearInterval(timer);
+            endGame();
+        }
+    },1000);
+}
+
+function endGame(){
+    enableButtons(false);
+    gameActive=false;
+    document.getElementById("result").innerText="⏰ Game Over!";
+}
+
+function enableButtons(state){
+    document.getElementById("rock").disabled=!state;
+    document.getElementById("paper").disabled=!state;
+    document.getElementById("scissors").disabled=!state;
+}
+
+function aiMove(){
+    if(!lastPlayerMove){
+        return randomMove();
+    }
+    if(lastPlayerMove==="rock") return "paper";
+    if(lastPlayerMove==="paper") return "scissors";
+    if(lastPlayerMove==="scissors") return "rock";
+}
+
+function randomMove(){
+    let moves=["rock","paper","scissors"];
+    return moves[Math.floor(Math.random()*3)];
+}
+
+function play(player){
+    if(!gameActive) return;
+
+    let ai=aiMove();
+    lastPlayerMove=player;
+
+    let result="";
+    if(player===ai){
+        draws++;
+        streak=0;
+        result="🤝 Draw!";
+    }
+    else if(
+        (player==="rock" && ai==="scissors")||
+        (player==="paper" && ai==="rock")||
+        (player==="scissors" && ai==="paper")
+    ){
+        wins++;
+        streak++;
+        result="🎉 You Win!";
+    }else{
+        losses++;
+        streak=0;
+        result="💀 You Lose!";
+    }
+
+    document.getElementById("result").innerText=
+        `You: ${player} | AI: ${ai} → ${result}`;
+
+    updateDisplay();
+    updateMood();
+}
+
+function updateDisplay(){
+    document.getElementById("wins").innerText=wins;
+    document.getElementById("losses").innerText=losses;
+    document.getElementById("draws").innerText=draws;
+    document.getElementById("streak").innerText=streak;
+
+    localStorage.setItem("rpsStats",
+        JSON.stringify({wins,losses,draws}));
+}
+
+function updateMood(){
+    let mood="😐";
+    if(losses>wins) mood="😈";
+    if(wins>losses) mood="😰";
+    document.getElementById("aiMood").innerText="AI Mood: "+mood;
+}
+
+function resetStats(){
+    localStorage.removeItem("rpsStats");
+    wins=losses=draws=streak=0;
+    updateDisplay();
+}
+
+window.onload=function(){
+    let saved=JSON.parse(localStorage.getItem("rpsStats"));
+    if(saved){
+        wins=saved.wins;
+        losses=saved.losses;
+        draws=saved.draws;
+        updateDisplay();
+    }
+}
+</script>
+
+</body>
+</html>
